@@ -106,3 +106,12 @@ func (c *Component) State() map[string]interface{} {
 	defer c.mu.Unlock()
 	return c.state
 }
+
+// SetState updates a specific key in the state map.
+// With this method it is possible to modify state 
+// from outside the package.
+func (c *Component) SetState(key string, value interface{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.state[key] = value
+}
