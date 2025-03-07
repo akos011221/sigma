@@ -91,8 +91,6 @@ func (c *Component) Render() (string, error) {
 // a counter). It calls the onUpdate callback if it exists.
 func (c *Component) Update(ctx *core.Context) {
 	fmt.Println("Starting Update")
-	c.mu.Lock() // Lock to safely modify state
-	defer c.mu.Unlock()
 
 	// Check if an update handler exists.
 	if c.onUpdate != nil {
