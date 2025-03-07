@@ -1,8 +1,10 @@
 package handlers
 
 import (
-	"github.com/akos011221/sigma/core"
+	"fmt"
 	"net/http"
+
+	"github.com/akos011221/sigma/core"
 )
 
 // UpdateComponent creates a handler to process component updates
@@ -18,11 +20,21 @@ func UpdateComponent(component core.ComponentInterface) core.HandlerFunc {
 			http.Error(c.Resp, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		fmt.Println("Before Update")
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Panic recovered:", r)
+				c.Resp.WriteHeader(http.StatusInternalServerError)
+				c.Resp.Write([]byte("Server error"))
+			}
+		}()
 
 		// Call the component's Update method to process
 		// the event. This delegates to the component's
 		// logic (e.g., incrementing a counter).
 		component.Update(c)
+
+		fmt.Println("After Update")
 		
 		// Prevent navigation for now.
 		c.Resp.Header().Set("Content-Type", "text/plain")
@@ -32,5 +44,7 @@ func UpdateComponent(component core.ComponentInterface) core.HandlerFunc {
 
 		// Ensure a response body to avoid hanging.
 		c.Resp.Write([]byte("OK"))
+
+		fmt.Println("Response sent")
 	}
 }

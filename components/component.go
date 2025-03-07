@@ -1,10 +1,12 @@
 package components
 
 import (
-	"github.com/akos011221/sigma/core"
 	"html/template"
 	"strings"
 	"sync"
+	"fmt"
+
+	"github.com/akos011221/sigma/core"
 )
 
 // Component represents a reusable UI element with state
@@ -88,15 +90,19 @@ func (c *Component) Render() (string, error) {
 // Update applies an event to the component (e.g., incrementing
 // a counter). It calls the onUpdate callback if it exists.
 func (c *Component) Update(ctx *core.Context) {
+	fmt.Println("Starting Update")
 	c.mu.Lock() // Lock to safely modify state
 	defer c.mu.Unlock()
 
 	// Check if an update handler exists.
 	if c.onUpdate != nil {
+		fmt.Println("Calling onUpdate")
 		// Call the callback, passing the
 		// component and context.
 		c.onUpdate(c, ctx)
+		fmt.Println("onUpdate completed")
 	}
+	fmt.Println("Update finished")
 }
 
 // State returns a read-only view of the component's state.
