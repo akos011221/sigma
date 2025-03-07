@@ -107,4 +107,42 @@ func (s *Sigma) RegisterComponent(c ComponentInterface) {
 	s.components[c.State()["name"].(string)] = c
 }
 
-// TODO: ServeHTTP
+// ServeHTTP makes Sigma implement the http.Handler interface.
+// Under the hood, this is called by net/http for every incoming 
+// request. It's the entry point where requests are routed to 
+// handlers.
+func (s *Sigma) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Look up routes for the request's method (e.g., "GET").
+	// methodRoutes is a map of paths to handlers, or nil if
+	// the method isn't supported
+	methodRoutes, ok := s.routes[r.Method]
+	if !ok {
+		// If no routes exist for this method, return a 405 error.
+		// http.Error writes the status code and message to w.
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Look up the handler for the exact path (e.g., "/home").
+	// handler is a HandlerFunc (Sigma's custom function type),
+	// or nil if not found.
+	handler, ok := methodRoutes[r.URL.Path]
+	if !ok {
+		// If no handler matches the path, return a 404 error.
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	// Create a new Context for this request.
+	ctx := &Context{
+		Req:	r,	// Pass the original request
+		Resp:	w,	// Pass the original response writer
+		Params: make(map[string]string), // Initialize an empty params map
+	}
+
+	// Call the handler with the context.
+	// It invokes the function stored in the handler variable.
+	// Since HandlerFunc is a type alias for func(*Context),
+	// it's just a function call.
+	handler(ctx)
+}
