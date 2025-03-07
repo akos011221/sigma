@@ -108,8 +108,8 @@ func (s *Sigma) RegisterComponent(c ComponentInterface) {
 }
 
 // ServeHTTP makes Sigma implement the http.Handler interface.
-// Under the hood, this is called by net/http for every incoming 
-// request. It's the entry point where requests are routed to 
+// Under the hood, this is called by net/http for every incoming
+// request. It's the entry point where requests are routed to
 // handlers.
 func (s *Sigma) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Look up routes for the request's method (e.g., "GET").
@@ -135,8 +135,8 @@ func (s *Sigma) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Create a new Context for this request.
 	ctx := &Context{
-		Req:	r,	// Pass the original request
-		Resp:	w,	// Pass the original response writer
+		Req:    r,                       // Pass the original request
+		Resp:   w,                       // Pass the original response writer
 		Params: make(map[string]string), // Initialize an empty params map
 	}
 

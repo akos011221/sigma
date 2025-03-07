@@ -1,16 +1,16 @@
 package components
 
 import (
+	"github.com/akos011221/sigma/core"
 	"html/template"
 	"strings"
 	"sync"
-	"github.com/akos011221/sigma/core"
 )
 
 // Component represents a reusable UI element with state
 // and a template. It holds data and behavior.
 type Component struct {
-	// name uniquely identifies this component 
+	// name uniquely identifies this component
 	// (e.g., "counter").
 	name string
 
@@ -35,7 +35,7 @@ type Component struct {
 
 // NewComponent creates a new component instance.
 // It's a constructor that initializes the struct.
-func NewComponent(name, tmpl string,initialState map[string]interface{}, onUpdate func(*Component, *core.Context)) *Component {
+func NewComponent(name, tmpl string, initialState map[string]interface{}, onUpdate func(*Component, *core.Context)) *Component {
 	// If initialState is nil, create an empty map
 	// to avoid nil pointer dereference.
 	if initialState == nil {
@@ -49,10 +49,10 @@ func NewComponent(name, tmpl string,initialState map[string]interface{}, onUpdat
 
 	// Return a pointer to a new Component struct.
 	return &Component{
-		name:		name,
-		state:		initialState,
-		template:	tmpl,
-		onUpdate:	onUpdate,
+		name:     name,
+		state:    initialState,
+		template: tmpl,
+		onUpdate: onUpdate,
 	}
 }
 
@@ -60,8 +60,8 @@ func NewComponent(name, tmpl string,initialState map[string]interface{}, onUpdat
 // and state. It uses Go's template engine to merge
 // state into the template.
 func (c *Component) Render() (string, error) {
-	c.mu.Lock()	// Lock to safely read state
-	defer c.mu.Unlock()	// Unlock when done
+	c.mu.Lock()         // Lock to safely read state
+	defer c.mu.Unlock() // Unlock when done
 
 	// Parse the template string into a *template.Template object.
 	// template.Must wraps Parse() and panics on error. It assumes
@@ -88,12 +88,12 @@ func (c *Component) Render() (string, error) {
 // Update applies an event to the component (e.g., incrementing
 // a counter). It calls the onUpdate callback if it exists.
 func (c *Component) Update(ctx *core.Context) {
-	c.mu.Lock()	// Lock to safely modify state
+	c.mu.Lock() // Lock to safely modify state
 	defer c.mu.Unlock()
 
 	// Check if an update handler exists.
 	if c.onUpdate != nil {
-		// Call the callback, passing the 
+		// Call the callback, passing the
 		// component and context.
 		c.onUpdate(c, ctx)
 	}
@@ -105,4 +105,4 @@ func (c *Component) State() map[string]interface{} {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.state
-}		
+}
