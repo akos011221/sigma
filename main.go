@@ -1,111 +1,89 @@
 package main
 
 import (
+	"net/http"
+	"fmt"
+
 	"github.com/akos011221/sigma/components"
 	"github.com/akos011221/sigma/core"
 	"github.com/akos011221/sigma/handlers"
 	"github.com/akos011221/sigma/realtime"
-	"net/http"
-	"fmt"
 )
 
 func main() {
 	app := core.New()
 
-	// Todo list component
-	todoList := components.NewComponent(
-		"todo-list",
-		`<div id="todo-list">
-			<ul>
-				{{range .Todos}}
-					<li><input type="checkbox" {{if .Done}}checked{{end}} data-id="{{.ID}}"> {{.Text}}</li>
-				{{end}}
-			</ul>
-		</div>`,
+	// Define a "status" component; our reusable UI piece.
+	// - Name: "status" (just an ID for Sigma to track it)
+	// - Template: HTML with a placeholder {{.Message}} for dynamic text.
+	// - Initial State: A map with a "Message" key, starting as "System: All good".
+	// - onUpdate: A function to handle changes when the user submits a new status.
+	status := components.NewComponent(
+		"status",
+		`<div id="status"> {{.Message}} </div>`, // Gets replaced by state.
 		map[string]interface{}{
-			"Todos": []map[string]interface{}{
-				{"ID": 1, "Text": "Buy milk", "Done": false},
-				{"ID": 2, "Text": "Walk dog", "Done": false}, // Fixed line, ensured proper key-value pairs
-			},
+			"Message": "System: All good", // this is the initial state
 		},
 		func(c *components.Component, ctx *core.Context) {
+			// This runs when a POST hits /update/status (e.g., form submit).
+			// Parse the form data from the HTTP request (ctx.Req is *http.Request).
 			if err := ctx.Req.ParseForm(); err != nil {
-				return
+				fmt.Println("debug: ParseForm failed:", err) // Debug: Form parsing issue?
+				return // Bail if form parsing fails; this is for simplicity for now.
 			}
-			action := ctx.Req.FormValue("action")
-			switch action {
-			case "add":
-				text := ctx.Req.FormValue("text")
-				if text != "" {
-					todos := c.State()["Todos"].([]map[string]interface{})
-					newID := len(todos) + 1
-					todos = append(todos, map[string]interface{}{
-						"ID":   newID,
-						"Text": text,
-						"Done": false,
-					})
-					c.SetState("Todos", todos)
-				}
-			case "toggle":
-				idStr := ctx.Req.FormValue("id")
-				if idStr != "" {
-					todos := c.State()["Todos"].([]map[string]interface{})
-					for i, todo := range todos {
-						// Convert idStr to int for comparison
-						if fmt.Sprintf("%d", todo["ID"]) == idStr {
-							todo["Done"] = !todo["Done"].(bool)
-							todos[i] = todo
-							break
-						}
-					}
-					c.SetState("Todos", todos)
-				}
+			// Grab the "message" field from the form (e.g., "System: Panic!").
+			newMessage := ctx.Req.FormValue("message")
+			fmt.Println("debug: Form message:", newMessage) // Debug: Did we get the input?
+			if newMessage != "" { // Only update if there's actual input.
+				// Set the new message in the component's state.
+				c.SetState("Message", newMessage)
+				fmt.Println("New state:", c.State()["Message"]) // Debug: Did state update?
+			} else {
+				fmt.Println("Empty message received") // Debug: No input?
 			}
 		},
 	)
-	app.RegisterComponent(todoList)
 
-	// Home page
+	// Register the component with Sigma so it's available for routing and updates.
+	app.RegisterComponent(status)
+
+	// Define the root route (GET /)
 	app.Handle("GET", "/", func(c *core.Context) {
-		initialHTML, err := todoList.Render()
+		// Render the component's initial HTML (e.g., "<div id='status'>System: All good</div>").
+		// Render() locks the state, fills the template, and returns a string.
+		initialHTML, err := status.Render()
 		if err != nil {
+			// If rendering fails (e.g., bad template), send a 500 error.
 			http.Error(c.Resp, "Failed to render component", http.StatusInternalServerError)
 			return
 		}
+		// Build the full page HTML.
+		// - Embed initialHTML in a <body>.
+		// - Add a form to submit new status messages.
+		// - Include JavaScript to handle form submission and SSE updates.
 		html := `
 		<html>
 		<body>
 			` + initialHTML + `
-			<form id="add-todo" method="POST" action="/update/todo-list">
-				<input type="text" name="text" placeholder="New todo">
-				<input type="hidden" name="action" value="add">
-				<button type="submit">Add</button>
+			<form id="status-form" method="POST" action="/update/status">
+				<input type="text" name="message" placeholder="Set status">
+				<button type="submit">Update</button>
 			</form>
 			<script>
-				const addForm = document.getElementById("add-todo");
-				addForm.addEventListener("submit", (e) => {
+				const form = document.getElementById("status-form");
+				form.addEventListener("submit", (e) => {
 					e.preventDefault();
-					fetch("/update/todo-list", {
+					const message = form.querySelector("[name=message]").value;
+					console.log("Sending message:", message);
+					fetch("/update/status", {
 						method: "POST",
-						body: new FormData(addForm)
-					});
+						body: new URLSearchParams({ message: message })
+					}).then(() => console.log("POST sent"));
 				});
-				const todoList = document.getElementById("todo-list");
-				todoList.addEventListener("change", (e) => {
-					if (e.target.type === "checkbox") {
-						const id = e.target.getAttribute("data-id");
-						fetch("/update/todo-list", {
-							method: "POST",
-							body: new URLSearchParams({
-								action: "toggle",
-								id: id
-							})
-						});
-					}
-				});
-				const evtSource = new EventSource("/sse/todo-list");
+				const evtSource = new EventSource("/sse/status");
 				evtSource.onmessage = (e) => {
-					document.getElementById("todo-list").innerHTML = e.data;
+					console.log("SSE update:", e.data);
+					document.getElementById("status").innerHTML = e.data;
 				};
 			</script>
 		</body>
@@ -113,8 +91,13 @@ func main() {
 		c.Resp.Write([]byte(html))
 	})
 
-	app.Handle("GET", "/sse/todo-list", realtime.SSEHandler(todoList))
-	app.Handle("POST", "/update/todo-list", handlers.UpdateComponent(todoList))
+	// Route for SSE updates (GET /sse/status).
+	// realtime.SSEHandler streams the component’s rendered HTML every second.
+	app.Handle("GET", "/sse/status", realtime.SSEHandler(status))
+
+	// Route for status updates (POST /update/status).
+	// handlers.UpdateComponent wraps our component’s Update logic in a handler.
+	app.Handle("POST", "/update/status", handlers.UpdateComponent(status))
 
 	http.ListenAndServe(":8080", app)
 }

@@ -68,6 +68,7 @@ func SSEHandler(component core.ComponentInterface) core.HandlerFunc {
 					// fmt.Fprintf writes to the ResponseWriter's internal
 					// buffer. SSE format requires "data: " followed by the
 					// payload and two newlines.
+					fmt.Println("SSE sending:", html) // Debug: What's being sent?
 					fmt.Fprintf(c.Resp, "data: %s\n\n", html)
 				}
 				// Flush sends the data immediately to the client.
